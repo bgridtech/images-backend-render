@@ -4,9 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Professional Image Uploader</title>
-  <!-- Compression library -->
   <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
-  <!-- Socket.IO client -->
   <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.5.0/dist/socket.io.min.js"></script>
   <style>
     :root {
@@ -18,8 +16,8 @@
       --text: #1f2937;
       --muted: #6b7280;
       --bar-bg: #e5e7eb;
-      --compress-color: #facc15; /* yellow */
-      --upload-color: #4f46e5;   /* purple */
+      --compress-color: #facc15;
+      --upload-color: #4f46e5;
       --disabled: #a5b4fc;
     }
     * { box-sizing: border-box; margin:0; padding:0 }
@@ -89,36 +87,18 @@
 <body>
   <div class="card">
     <h1>Image Upload</h1>
-
-    <!-- Drop area -->
     <div class="file-drop" id="dropArea">
       <div class="icon">📁</div>
       <p>Click or drag & drop an image</p>
     </div>
     <input type="file" id="fileInput" accept="image/*" />
-
     <div class="file-name" id="fileName">No file chosen</div>
-
-    <!-- Trigger -->
     <button type="button" id="startBtn">Compress & Upload</button>
     <div class="stage-label" id="stageLabel"></div>
-
-    <!-- Progress bars -->
-    <div class="progress-bar" id="compressBar">
-      <div class="progress-fill" id="compressFill" style="background: var(--compress-color)"></div>
-    </div>
-    <div class="progress-bar" id="clientBar">
-      <div class="progress-fill" id="clientFill" style="background: var(--upload-color)"></div>
-    </div>
-    <div class="progress-bar" id="githubBar">
-      <div class="progress-fill" id="githubFill" style="background: var(--upload-color)"></div>
-    </div>
-
-    <!-- Result -->
-    <div id="result">
-      <code id="resultUrl"></code>
-      <div class="copy-icon" id="copyBtn">📋</div>
-    </div>
+    <div class="progress-bar" id="compressBar"><div class="progress-fill" id="compressFill" style="background: var(--compress-color)"></div></div>
+    <div class="progress-bar" id="clientBar"><div class="progress-fill" id="clientFill" style="background: var(--upload-color)"></div></div>
+    <div class="progress-bar" id="githubBar"><div class="progress-fill" id="githubFill" style="background: var(--upload-color)"></div></div>
+    <div id="result"><code id="resultUrl"></code><div class="copy-icon" id="copyBtn">📋</div></div>
   </div>
 
   <script>
@@ -148,17 +128,13 @@
       startBtn.disabled = false;
     }
 
-    // open file picker
     dropArea.addEventListener('click', () => fileInput.click());
-
-    // file chosen
     fileInput.addEventListener('change', () => {
       currentFile = fileInput.files[0];
       fileNameEl.textContent = currentFile?.name || 'No file chosen';
       resetUI();
     });
 
-    // drag & drop
     ['dragover','dragleave','drop'].forEach(evt => {
       dropArea.addEventListener(evt, e => {
         e.preventDefault();
@@ -176,9 +152,9 @@
       if (!currentFile) return alert('Please select an image first!');
       startBtn.disabled = true;
 
-      // 1) Compress if >1.5MB
+      // 1. Compress if needed
       let toUpload = currentFile;
-      if (currentFile.size > 1.5*1024*1024) {
+      if (currentFile.size > 1.5 * 1024 * 1024) {
         stageLabel.textContent = 'Compressing… 0%';
         compressBar.style.display = 'block';
         toUpload = await imageCompression(currentFile, {
@@ -193,56 +169,62 @@
         });
       }
 
-      // 2) Client→Server upload via SocketIO binary
-      stageLabel.textContent = 'Sending to server… 0%';
+      // 2. Upload to backend (Socket.IO chunking)
+      const buffer = await toUpload.arrayBuffer();
+      const base64Data = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+
+      stageLabel.textContent = 'Uploading to server… 0%';
       clientBar.style.display = 'block';
 
-      const buffer = await toUpload.arrayBuffer();
-      const total = buffer.byteLength;
+      // Break into chunks manually
+      const total = base64Data.length;
+      const chunkSize = 100_000;
       let sent = 0;
-      const chunkSize = 256*1024;
 
-      for (let offset=0; offset<total; offset+=chunkSize) {
-        const chunk = buffer.slice(offset, offset+chunkSize);
-        socket.emit('start_upload_chunk', { filename: toUpload.name, chunk });
-        sent += chunk.byteLength;
-        const p = Math.round(sent/total*100);
-        clientFill.style.width = p + '%';
-        stageLabel.textContent = `Sending to server… ${p}%`;
-        await new Promise(r=>setTimeout(r, 10));
+      for (let i = 0; i < total; i += chunkSize) {
+        const chunk = base64Data.slice(i, i + chunkSize);
+        socket.emit("upload_chunk", { chunk });
+        sent += chunk.length;
+        const pct = Math.round(sent / total * 100);
+        clientFill.style.width = pct + '%';
+        stageLabel.textContent = `Uploading to server… ${pct}%`;
+        await new Promise(r => setTimeout(r, 10));
       }
-      socket.emit('start_upload_complete', { filename: toUpload.name });
 
-      // 3) Backend→GitHub
-      stageLabel.textContent = 'Uploading to GitHub…';
-      githubBar.style.display = 'block';
+      // Done sending
+      socket.emit("upload_done", {
+        filename: toUpload.name
+      });
     });
 
-    // backend status
-    socket.on('upload_status', data => {
-      if (data.stage === 'github_started') {
-        // optional indeterminate animation
-        let w=0, anim=setInterval(()=>{
-          githubFill.style.width = (w=(w+10)%100)+'%';
-        },200);
-        socket.once('upload_status', ()=>clearInterval(anim));
-      }
-      if (data.stage === 'done') {
-        stageLabel.textContent = '';
-        githubFill.style.width = '100%';
-        resultUrl.textContent = data.url;
-        resultDiv.style.display = 'block';
-      }
-      if (data.stage === 'error') {
-        stageLabel.textContent = 'Error: '+data.message;
+    // GitHub upload progress
+    socket.on("upload_status", (data) => {
+      if (data.stage === "github_started") {
+        stageLabel.textContent = "Uploading to GitHub…";
+        githubBar.style.display = 'block';
+        githubFill.style.width = '0%';
+        let w = 0;
+        const anim = setInterval(() => {
+          githubFill.style.width = (w = (w + 10) % 100) + '%';
+        }, 200);
+        socket.once("upload_status", (final) => {
+          clearInterval(anim);
+          if (final.stage === "done") {
+            githubFill.style.width = '100%';
+            resultUrl.textContent = final.url;
+            resultDiv.style.display = 'block';
+            stageLabel.textContent = '';
+          } else if (final.stage === "error") {
+            stageLabel.textContent = "Error: " + final.message;
+          }
+        });
       }
     });
 
-    // copy URL
-    copyBtn.addEventListener('click', ()=>{
-      navigator.clipboard.writeText(resultUrl.textContent).then(()=>{
-        copyBtn.textContent='✅';
-        setTimeout(()=>copyBtn.textContent='📋',1500);
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(resultUrl.textContent).then(() => {
+        copyBtn.textContent = '✅';
+        setTimeout(() => copyBtn.textContent = '📋', 1500);
       });
     });
   </script>

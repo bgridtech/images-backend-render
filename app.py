@@ -3,17 +3,19 @@ import base64
 import requests
 import psycopg2
 from datetime import datetime
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, render_template, request
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 
-# Flask setup
+# Flask + SocketIO setup
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # GitHub config
 REPO_OWNER = "bgridtech"
 REPO_LIST = ["images", "images1", "images2", "images3"]
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")  # Set in Vercel
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 # NeonDB config
 DB_PARAMS = {
@@ -24,11 +26,13 @@ DB_PARAMS = {
     "sslmode": "require"
 }
 
+# Track uploads by client session
+uploads = {}
+
 def get_db_conn():
     return psycopg2.connect(**DB_PARAMS)
 
 def get_next_repo_index():
-    """Read and increment repo index."""
     with get_db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT num FROM save LIMIT 1;")
@@ -40,7 +44,6 @@ def get_next_repo_index():
     return idx
 
 def record_detail(filename, url, repo):
-    """Insert upload metadata into details table."""
     with get_db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -50,9 +53,6 @@ def record_detail(filename, url, repo):
         conn.commit()
 
 def upload_to_github(repo, orig_filename, data_bytes):
-    """
-    Uploads image to GitHub. Returns (timestamped_filename, raw_url).
-    """
     timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
     ts_filename = f"{timestamp}_{orig_filename}"
     path = f"uploads/{ts_filename}"
@@ -66,8 +66,11 @@ def upload_to_github(repo, orig_filename, data_bytes):
         "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
     }
+
+    # GitHub upload
     resp = requests.put(api_url, json=payload, headers=headers)
     resp.raise_for_status()
+
     raw_url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{repo}/main/{path}"
     return ts_filename, raw_url
 
@@ -75,29 +78,52 @@ def upload_to_github(repo, orig_filename, data_bytes):
 def index():
     return render_template("index.html")
 
-@app.route("/upload", methods=["POST"])
-def upload_image():
-    if "image" not in request.files:
-        return jsonify({"error": "No image file sent"}), 400
+@socketio.on("start_upload_chunk")
+def handle_chunk(data):
+    sid = request.sid
+    filename = data['filename']
+    chunk_array = data['chunk']  # received as array of numbers
+    chunk_bytes = bytes(chunk_array)
 
-    file = request.files["image"]
-    data = file.read()
-    orig_name = file.filename
+    if sid not in uploads:
+        uploads[sid] = {'filename': filename, 'chunks': []}
+    
+    uploads[sid]['chunks'].append(chunk_bytes)
 
+@socketio.on("start_upload_complete")
+def handle_complete(data):
+    sid = request.sid
     try:
-        # Choose repo by round-robin
+        if sid not in uploads:
+            emit("upload_status", {"stage": "error", "message": "Upload not initialized"})
+            return
+
+        file_chunks = uploads[sid]['chunks']
+        filename = uploads[sid]['filename']
+        full_data = b''.join(file_chunks)
+        del uploads[sid]
+
+        # Select next GitHub repo
         idx = get_next_repo_index()
         repo = REPO_LIST[idx]
 
-        # Upload image to GitHub
-        ts_name, raw_url = upload_to_github(repo, orig_name, data)
+        # Notify client GitHub upload has started
+        emit("upload_status", {"stage": "github_started"})
 
-        # Save metadata to NeonDB
+        # Upload to GitHub
+        ts_name, raw_url = upload_to_github(repo, filename, full_data)
+
+        # Save metadata
         record_detail(ts_name, raw_url, repo)
 
-        return jsonify({"url": raw_url}), 200
+        # Notify success
+        emit("upload_status", {"stage": "done", "url": raw_url})
 
     except requests.HTTPError as e:
-        return jsonify({"error": f"GitHub API error: {e.response.json()}"}), 500
+        err = e.response.json()
+        emit("upload_status", {"stage": "error", "message": err})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        emit("upload_status", {"stage": "error", "message": str(e)})
+
+if __name__ == "__main__":
+    socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
