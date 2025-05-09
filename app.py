@@ -31,7 +31,7 @@ DB_PARAMS = {
     "sslmode": "require"
 }
 
-# Track uploads by client session
+# Track uploads by session
 uploads = {}
 
 def get_db_conn():
@@ -83,45 +83,51 @@ def upload_to_github(repo, orig_filename, data_bytes):
 def index():
     return render_template("index.html")
 
-@socketio.on("start_upload_chunk")
-def handle_chunk(data):
+# === FRONTEND MATCHING EVENTS ===
+
+@socketio.on("upload_chunk")
+def handle_upload_chunk(data):
     sid = request.sid
-    filename = data['filename']
-    chunk_array = data['chunk']  # received as array of numbers
-    chunk_bytes = bytes(chunk_array)
+    chunk_b64 = data['chunk']
+    try:
+        chunk_bytes = base64.b64decode(chunk_b64)
+    except Exception:
+        emit("upload_status", {"stage": "error", "message": "Invalid base64 chunk"})
+        return
 
     if sid not in uploads:
-        uploads[sid] = {'filename': filename, 'chunks': []}
+        uploads[sid] = {'filename': None, 'chunks': []}
     
     uploads[sid]['chunks'].append(chunk_bytes)
 
-@socketio.on("start_upload_complete")
-def handle_complete(data):
+@socketio.on("upload_done")
+def handle_upload_done(data):
     sid = request.sid
     try:
-        if sid not in uploads:
-            emit("upload_status", {"stage": "error", "message": "Upload not initialized"})
+        filename = data.get('filename')
+        if sid not in uploads or not uploads[sid]['chunks']:
+            emit("upload_status", {"stage": "error", "message": "No chunks received"})
             return
 
+        uploads[sid]['filename'] = filename
         file_chunks = uploads[sid]['chunks']
-        filename = uploads[sid]['filename']
         full_data = b''.join(file_chunks)
         del uploads[sid]
 
-        # Select next GitHub repo
+        # Choose GitHub repo
         idx = get_next_repo_index()
         repo = REPO_LIST[idx]
 
-        # Notify client GitHub upload has started
+        # Notify frontend
         emit("upload_status", {"stage": "github_started"})
 
         # Upload to GitHub
         ts_name, raw_url = upload_to_github(repo, filename, full_data)
 
-        # Save metadata
+        # Save to database
         record_detail(ts_name, raw_url, repo)
 
-        # Notify success
+        # Notify frontend
         emit("upload_status", {"stage": "done", "url": raw_url})
 
     except requests.HTTPError as e:
@@ -130,5 +136,6 @@ def handle_complete(data):
     except Exception as e:
         emit("upload_status", {"stage": "error", "message": str(e)})
 
+# === SERVER START ===
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
