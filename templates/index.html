@@ -4,12 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Professional Image Uploader</title>
-  <!-- Compression lib -->
+  <!-- Compression library -->
   <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
   <!-- Socket.IO client -->
-  <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"
-    integrity="sha384-YOUR_INTEGRITY_HASH"
-    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.5.0/dist/socket.io.min.js"></script>
   <style>
     :root {
       --bg-start: #edf2f7;
@@ -24,71 +22,42 @@
       --upload-color: #4f46e5;   /* purple */
       --disabled: #a5b4fc;
     }
-    * { box-sizing: border-box; margin:0; padding:0; }
+    * { box-sizing: border-box; margin:0; padding:0 }
     body {
-      font-family: 'Segoe UI',sans-serif;
+      font-family:'Segoe UI',sans-serif;
       background: linear-gradient(to right, var(--bg-start), var(--bg-end));
       height:100vh; display:flex; align-items:center; justify-content:center;
       color: var(--text); padding:20px;
     }
     .card {
-      background: var(--card-bg);
-      backdrop-filter: blur(8px);
-      border-radius: 1rem;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.12);
-      width:100%; max-width:480px;
-      padding:2rem;
-      text-align:center;
+      background: var(--card-bg); backdrop-filter: blur(8px);
+      border-radius:1rem; box-shadow:0 12px 32px rgba(0,0,0,0.12);
+      width:100%; max-width:480px; padding:2rem; text-align:center;
     }
-    h1 {
-      font-size:1.5rem; margin-bottom:1.5rem;
-    }
+    h1 { font-size:1.5rem; margin-bottom:1.5rem }
     .file-drop {
-      border: 2px dashed #cbd5e1;
-      border-radius: 0.75rem;
-      padding: 2rem;
-      cursor: pointer;
-      transition: background 0.3s, border-color 0.3s;
-      margin-bottom: 1rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      border:2px dashed #cbd5e1; border-radius:0.75rem;
+      padding:2rem; cursor:pointer; transition: background .3s, border-color .3s;
+      margin-bottom:1rem; display:flex; align-items:center; justify-content:center;
+      flex-direction:column;
     }
     .file-drop.dragover {
-      background:#e0e7ff;
-      border-color: var(--accent);
+      background:#e0e7ff; border-color:var(--accent);
     }
-    .file-drop .icon {
-      font-size:2rem;
-      margin-bottom:0.5rem;
-      color: var(--muted);
-    }
-    .file-drop p {
-      font-size:0.9rem;
-      color: var(--muted);
-    }
-    input[type="file"] { display:none; }
+    .file-drop .icon { font-size:2rem; color: var(--muted); margin-bottom:0.5rem }
+    .file-drop p { font-size:0.9rem; color: var(--muted) }
+    input[type="file"] { display:none }
     .file-name {
-      font-size:0.85rem;
-      color: var(--text);
-      margin-bottom:1rem;
-      word-break:break-all;
+      font-size:0.85rem; color: var(--text);
+      margin-bottom:1rem; word-break:break-all;
     }
     button {
-      width:100%; padding:0.75rem;
-      font-size:1rem; border:none;
-      border-radius:0.5rem; cursor:pointer;
-      background: var(--accent); color:white;
-      transition:background 0.2s;
+      width:100%; padding:0.75rem; font-size:1rem;
+      border:none; border-radius:0.5rem; cursor:pointer;
+      background: var(--accent); color:white; transition: background .2s;
     }
-    button:hover:not([disabled]) {
-      background: var(--accent-hover);
-    }
-    button[disabled] {
-      background: var(--disabled);
-      cursor:not-allowed;
-    }
+    button:hover:not([disabled]) { background: var(--accent-hover) }
+    button[disabled] { background: var(--disabled); cursor:not-allowed }
     .stage-label {
       font-size:0.85rem; color: var(--muted);
       margin-top:0.75rem; min-height:1.2rem;
@@ -96,11 +65,10 @@
     .progress-bar {
       width:100%; background:var(--bar-bg);
       border-radius:0.5rem; overflow:hidden;
-      height:0.75rem; margin-top:0.5rem;
-      display:none;
+      height:0.75rem; margin-top:0.5rem; display:none;
     }
     .progress-fill {
-      height:100%; width:0%; transition:width 0.1s ease;
+      height:100%; width:0%; transition:width .1s ease;
     }
     #result {
       margin-top:1.5rem; display:none; position:relative;
@@ -115,36 +83,38 @@
       position:absolute; top:0.75rem; right:0.75rem;
       font-size:1rem; color:var(--accent); cursor:pointer;
     }
-    .copy-icon:hover {
-      color:var(--accent-hover);
-    }
+    .copy-icon:hover { color: var(--accent-hover) }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>Image Upload</h1>
-    <label class="file-drop" id="dropArea">
+
+    <!-- Drop area -->
+    <div class="file-drop" id="dropArea">
       <div class="icon">📁</div>
-      <p>Click or drag &amp; drop an image</p>
-      <input type="file" id="fileInput" accept="image/*" />
-    </label>
+      <p>Click or drag & drop an image</p>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" />
+
     <div class="file-name" id="fileName">No file chosen</div>
-    <button id="startBtn">Compress &amp; Upload</button>
+
+    <!-- Trigger -->
+    <button type="button" id="startBtn">Compress & Upload</button>
     <div class="stage-label" id="stageLabel"></div>
 
-    <!-- Compression Progress -->
+    <!-- Progress bars -->
     <div class="progress-bar" id="compressBar">
       <div class="progress-fill" id="compressFill" style="background: var(--compress-color)"></div>
     </div>
-    <!-- Client→Server Upload Progress -->
-    <div class="progress-bar" id="clientUploadBar">
-      <div class="progress-fill" id="clientUploadFill" style="background: var(--upload-color)"></div>
+    <div class="progress-bar" id="clientBar">
+      <div class="progress-fill" id="clientFill" style="background: var(--upload-color)"></div>
     </div>
-    <!-- Backend→GitHub Progress -->
     <div class="progress-bar" id="githubBar">
       <div class="progress-fill" id="githubFill" style="background: var(--upload-color)"></div>
     </div>
 
+    <!-- Result -->
     <div id="result">
       <code id="resultUrl"></code>
       <div class="copy-icon" id="copyBtn">📋</div>
@@ -152,38 +122,43 @@
   </div>
 
   <script>
-    const socket          = io(); // auto-connect
-    const dropArea        = document.getElementById('dropArea');
-    const fileInput       = document.getElementById('fileInput');
-    const fileNameEl      = document.getElementById('fileName');
-    const startBtn        = document.getElementById('startBtn');
-    const stageLabel      = document.getElementById('stageLabel');
-    const compressBar     = document.getElementById('compressBar');
-    const compressFill    = document.getElementById('compressFill');
-    const clientBar       = document.getElementById('clientUploadBar');
-    const clientFill      = document.getElementById('clientUploadFill');
-    const githubBar       = document.getElementById('githubBar');
-    const githubFill      = document.getElementById('githubFill');
-    const resultDiv       = document.getElementById('result');
-    const resultUrl       = document.getElementById('resultUrl');
-    const copyBtn         = document.getElementById('copyBtn');
+    const socket       = io();
+    const dropArea     = document.getElementById('dropArea');
+    const fileInput    = document.getElementById('fileInput');
+    const fileNameEl   = document.getElementById('fileName');
+    const startBtn     = document.getElementById('startBtn');
+    const stageLabel   = document.getElementById('stageLabel');
+    const compressBar  = document.getElementById('compressBar');
+    const compressFill = document.getElementById('compressFill');
+    const clientBar    = document.getElementById('clientBar');
+    const clientFill   = document.getElementById('clientFill');
+    const githubBar    = document.getElementById('githubBar');
+    const githubFill   = document.getElementById('githubFill');
+    const resultDiv    = document.getElementById('result');
+    const resultUrl    = document.getElementById('resultUrl');
+    const copyBtn      = document.getElementById('copyBtn');
 
     let currentFile = null;
 
     function resetUI() {
       stageLabel.textContent = '';
-      [compressBar, clientBar, githubBar].forEach(bar => bar.style.display = 'none');
-      [compressFill, clientFill, githubFill].forEach(fill => fill.style.width = '0%');
+      [compressBar, clientBar, githubBar].forEach(b => b.style.display='none');
+      [compressFill, clientFill, githubFill].forEach(f => f.style.width='0%');
       resultDiv.style.display = 'none';
       startBtn.disabled = false;
     }
 
+    // open file picker
+    dropArea.addEventListener('click', () => fileInput.click());
+
+    // file chosen
     fileInput.addEventListener('change', () => {
       currentFile = fileInput.files[0];
-      fileNameEl.textContent = currentFile ? currentFile.name : 'No file chosen';
+      fileNameEl.textContent = currentFile?.name || 'No file chosen';
       resetUI();
     });
 
+    // drag & drop
     ['dragover','dragleave','drop'].forEach(evt => {
       dropArea.addEventListener(evt, e => {
         e.preventDefault();
@@ -201,7 +176,7 @@
       if (!currentFile) return alert('Please select an image first!');
       startBtn.disabled = true;
 
-      // 1) Compression (>1.5MB)
+      // 1) Compress if >1.5MB
       let toUpload = currentFile;
       if (currentFile.size > 1.5*1024*1024) {
         stageLabel.textContent = 'Compressing… 0%';
@@ -218,28 +193,24 @@
         });
       }
 
-      // 2) Client→Server upload
+      // 2) Client→Server upload via SocketIO binary
       stageLabel.textContent = 'Sending to server… 0%';
       clientBar.style.display = 'block';
 
-      // Read file as ArrayBuffer for Socket.IO binary emit
-      const arrayBuffer = await toUpload.arrayBuffer();
-      const totalBytes = arrayBuffer.byteLength;
-      let sentBytes = 0;
+      const buffer = await toUpload.arrayBuffer();
+      const total = buffer.byteLength;
+      let sent = 0;
+      const chunkSize = 256*1024;
 
-      // chunk up in 256KB pieces to update client upload progress
-      const chunkSize = 256 * 1024;
-      for (let offset = 0; offset < totalBytes; offset += chunkSize) {
-        const chunk = arrayBuffer.slice(offset, offset + chunkSize);
+      for (let offset=0; offset<total; offset+=chunkSize) {
+        const chunk = buffer.slice(offset, offset+chunkSize);
         socket.emit('start_upload_chunk', { filename: toUpload.name, chunk });
-        sentBytes += chunk.byteLength;
-        const p = Math.round(sentBytes / totalBytes * 100);
+        sent += chunk.byteLength;
+        const p = Math.round(sent/total*100);
         clientFill.style.width = p + '%';
         stageLabel.textContent = `Sending to server… ${p}%`;
-        await new Promise(r => setTimeout(r, 10)); // give socket time
+        await new Promise(r=>setTimeout(r, 10));
       }
-
-      // signal end of chunks
       socket.emit('start_upload_complete', { filename: toUpload.name });
 
       // 3) Backend→GitHub
@@ -247,17 +218,14 @@
       githubBar.style.display = 'block';
     });
 
-    // Listen for backend status
+    // backend status
     socket.on('upload_status', data => {
       if (data.stage === 'github_started') {
-        // we could animate an indeterminate bar:
-        let width = 0;
-        githubFill.style.width = '0%';
-        const anim = setInterval(() => {
-          width = (width + 10) % 100;
-          githubFill.style.width = width + '%';
-        }, 200);
-        socket.once('upload_status', () => clearInterval(anim));
+        // optional indeterminate animation
+        let w=0, anim=setInterval(()=>{
+          githubFill.style.width = (w=(w+10)%100)+'%';
+        },200);
+        socket.once('upload_status', ()=>clearInterval(anim));
       }
       if (data.stage === 'done') {
         stageLabel.textContent = '';
@@ -266,14 +234,15 @@
         resultDiv.style.display = 'block';
       }
       if (data.stage === 'error') {
-        stageLabel.textContent = 'Error: ' + data.message;
+        stageLabel.textContent = 'Error: '+data.message;
       }
     });
 
-    copyBtn.addEventListener('click', () => {
-      navigator.clipboard.writeText(resultUrl.textContent).then(() => {
-        copyBtn.textContent = '✅';
-        setTimeout(() => copyBtn.textContent = '📋', 1500);
+    // copy URL
+    copyBtn.addEventListener('click', ()=>{
+      navigator.clipboard.writeText(resultUrl.textContent).then(()=>{
+        copyBtn.textContent='✅';
+        setTimeout(()=>copyBtn.textContent='📋',1500);
       });
     });
   </script>
