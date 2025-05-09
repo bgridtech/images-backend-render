@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: flask-uploader
+    env: python
+    region: singapore
+    buildCommand: ""  # Python doesn't need build step
+    startCommand: gunicorn app:app
+    plan: free
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false  # Add manually in dashboard or use secrets
+      - key: NEON_PASS
+        sync: false
