@@ -1,3 +1,8 @@
+# >>> MONKEY PATCHING MUST COME FIRST <<<
+import eventlet
+eventlet.monkey_patch()
+
+# THEN IMPORT EVERYTHING ELSE
 import os
 import base64
 import requests
