@@ -26,24 +26,24 @@
   </div>
 
   <script>
-    const socket = io();
-    const dropArea = document.getElementById('dropArea');
-    const fileInput = document.getElementById('fileInput');
-    const fileNameEl = document.getElementById('fileName');
-    const startBtn = document.getElementById('startBtn');
-    const stageLabel = document.getElementById('stageLabel');
-    const compressBar = document.getElementById('compressBar');
+    const socket       = io();
+    const dropArea     = document.getElementById('dropArea');
+    const fileInput    = document.getElementById('fileInput');
+    const fileNameEl   = document.getElementById('fileName');
+    const startBtn     = document.getElementById('startBtn');
+    const stageLabel   = document.getElementById('stageLabel');
+    const compressBar  = document.getElementById('compressBar');
     const compressFill = document.getElementById('compressFill');
-    const clientBar = document.getElementById('clientBar');
-    const clientFill = document.getElementById('clientFill');
-    const githubBar = document.getElementById('githubBar');
-    const githubFill = document.getElementById('githubFill');
-    const resultDiv = document.getElementById('result');
-    const resultUrl = document.getElementById('resultUrl');
-    const copyBtn = document.getElementById('copyBtn');
+    const clientBar    = document.getElementById('clientBar');
+    const clientFill   = document.getElementById('clientFill');
+    const githubBar    = document.getElementById('githubBar');
+    const githubFill   = document.getElementById('githubFill');
+    const resultDiv    = document.getElementById('result');
+    const resultUrl    = document.getElementById('resultUrl');
+    const copyBtn      = document.getElementById('copyBtn');
 
     let currentFile = null;
-    let isUploading = false;  // Prevent duplicate uploads
+    let isUploading = false;
 
     function resetUI() {
       stageLabel.textContent = '';
@@ -54,17 +54,18 @@
     }
 
     dropArea.addEventListener('click', () => fileInput.click());
+
     fileInput.addEventListener('change', () => {
       currentFile = fileInput.files[0];
       fileNameEl.textContent = currentFile?.name || 'No file chosen';
       resetUI();
     });
 
-    ['dragover', 'dragleave', 'drop'].forEach(evt => {
+    ['dragover','dragleave','drop'].forEach(evt => {
       dropArea.addEventListener(evt, e => {
         e.preventDefault();
-        dropArea.classList.toggle('dragover', evt === 'dragover');
-        if (evt === 'drop') {
+        dropArea.classList.toggle('dragover', evt==='dragover');
+        if (evt==='drop') {
           currentFile = e.dataTransfer.files[0];
           fileInput.files = e.dataTransfer;
           fileNameEl.textContent = currentFile.name;
@@ -73,9 +74,9 @@
       });
     });
 
-    startBtn.addEventListener('click', async () => {
+    async function uploadHandler() {
+      if (isUploading) return;
       if (!currentFile) return alert('Please select an image first!');
-      if (isUploading) return; // Prevent duplicate uploads
       isUploading = true;
       startBtn.disabled = true;
 
@@ -97,14 +98,13 @@
           });
         }
 
-        // 2. Upload to backend (Socket.IO chunking)
+        // 2. Upload to backend
         const buffer = await toUpload.arrayBuffer();
         const base64Data = btoa(String.fromCharCode(...new Uint8Array(buffer)));
 
         stageLabel.textContent = 'Uploading to server… 0%';
         clientBar.style.display = 'block';
 
-        // Break into chunks manually
         const total = base64Data.length;
         const chunkSize = 100_000;
         let sent = 0;
@@ -116,22 +116,20 @@
           const pct = Math.round(sent / total * 100);
           clientFill.style.width = pct + '%';
           stageLabel.textContent = `Uploading to server… ${pct}%`;
-          await new Promise(r => setTimeout(r, 10)); // Small delay to prevent flooding
+          await new Promise(r => setTimeout(r, 10));
         }
 
-        // Done sending
-        socket.emit("upload_done", {
-          filename: toUpload.name
-        });
-      } catch (error) {
-        console.error('Error during image upload:', error);
-        alert('An error occurred during the upload. Please try again.');
-      } finally {
-        isUploading = false; // Reset the flag to allow future uploads
-      }
-    });
+        socket.emit("upload_done", { filename: toUpload.name });
 
-    // GitHub upload progress
+      } catch (err) {
+        console.error("Error during image upload:", err);
+        alert("Upload failed: " + err.message);
+      }
+    }
+
+    startBtn.addEventListener('click', uploadHandler);
+
+    // GitHub progress
     socket.on("upload_status", (data) => {
       if (data.stage === "github_started") {
         stageLabel.textContent = "Uploading to GitHub…";
@@ -151,6 +149,7 @@
           } else if (final.stage === "error") {
             stageLabel.textContent = "Error: " + final.message;
           }
+          isUploading = false;
         });
       }
     });
