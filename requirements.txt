@@ -1,6 +1,7 @@
-Flask
+Flask>=2.0
+flask-cors>=3.0
+flask-socketio>=5.0
+eventlet>=0.33
+requests>=2.25
+psycopg2-binary>=2.9
 gunicorn
-flask-cors
-psycopg2-binary
-requests
-python-dotenv
