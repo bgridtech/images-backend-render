@@ -11,18 +11,31 @@
 <body>
   <div class="card">
     <h1>Image Upload</h1>
+
     <div class="file-drop" id="dropArea">
       <div class="icon">📁</div>
       <p>Click or drag & drop an image</p>
     </div>
     <input type="file" id="fileInput" accept="image/*" />
     <div class="file-name" id="fileName">No file chosen</div>
+
     <button type="button" id="startBtn">Compress & Upload</button>
+
     <div class="stage-label" id="stageLabel"></div>
-    <div class="progress-bar" id="compressBar"><div class="progress-fill" id="compressFill" style="background: var(--compress-color)"></div></div>
-    <div class="progress-bar" id="clientBar"><div class="progress-fill" id="clientFill" style="background: var(--upload-color)"></div></div>
-    <div class="progress-bar" id="githubBar"><div class="progress-fill" id="githubFill" style="background: var(--upload-color)"></div></div>
-    <div id="result"><code id="resultUrl"></code><div class="copy-icon" id="copyBtn">📋</div></div>
+    <div class="progress-bar" id="compressBar">
+      <div class="progress-fill" id="compressFill" style="background: var(--compress-color)"></div>
+    </div>
+    <div class="progress-bar" id="clientBar">
+      <div class="progress-fill" id="clientFill" style="background: var(--upload-color)"></div>
+    </div>
+    <div class="progress-bar" id="githubBar">
+      <div class="progress-fill" id="githubFill" style="background: var(--github-color)"></div>
+    </div>
+
+    <div id="result">
+      <code id="resultUrl"></code>
+      <div class="copy-icon" id="copyBtn">📋</div>
+    </div>
   </div>
 
   <script>
@@ -61,7 +74,7 @@
       resetUI();
     });
 
-    ['dragover','dragleave','drop'].forEach(evt => {
+    ['dragover', 'dragleave', 'drop'].forEach(evt => {
       dropArea.addEventListener(evt, e => {
         e.preventDefault();
         dropArea.classList.toggle('dragover', evt === 'dragover');
@@ -80,7 +93,7 @@
         reader.onerror = () => reject(new Error("FileReader failed."));
         reader.onload = () => {
           const result = reader.result;
-          resolve(result.split(",", 2)[1]); // Extract base64 payload
+          resolve(result.split(",", 2)[1]);
         };
         reader.readAsDataURL(file);
       });
@@ -94,9 +107,11 @@
 
       try {
         let toUpload = currentFile;
+
         if (currentFile.size > 1.5 * 1024 * 1024) {
           stageLabel.textContent = 'Compressing… 0%';
           compressBar.style.display = 'block';
+
           toUpload = await imageCompression(currentFile, {
             maxSizeMB: 1,
             maxWidthOrHeight: 1024,
@@ -133,6 +148,8 @@
       } catch (err) {
         console.error("Error during image upload:", err);
         alert("Upload failed: " + err.message);
+        isUploading = false;
+        startBtn.disabled = false;
       }
     }
 
@@ -140,20 +157,21 @@
 
     socket.on("upload_status", (data) => {
       if (data.stage === "github_started") {
-        stageLabel.textContent = "Uploading to GitHub…";
+        stageLabel.textContent = "Uploading to GitHub… please wait";
         githubBar.style.display = 'block';
         githubFill.style.width = '0%';
         let w = 0;
         const anim = setInterval(() => {
           githubFill.style.width = (w = (w + 10) % 100) + '%';
         }, 200);
+
         socket.once("upload_status", (final) => {
           clearInterval(anim);
           if (final.stage === "done") {
             githubFill.style.width = '100%';
             resultUrl.textContent = final.url;
             resultDiv.style.display = 'block';
-            stageLabel.textContent = '';
+            stageLabel.textContent = 'Upload complete!';
           } else if (final.stage === "error") {
             stageLabel.textContent = "Error: " + final.message;
           }
