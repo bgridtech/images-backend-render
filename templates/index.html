@@ -6,99 +6,24 @@
   <title>Professional Image Uploader</title>
   <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.5.0/dist/socket.io.min.js"></script>
-  <style>
-    :root {
-      --bg-start: #edf2f7;
-      --bg-end: #ffffff;
-      --card-bg: rgba(255,255,255,0.8);
-      --accent: #4f46e5;
-      --accent-hover: #4338ca;
-      --text: #1f2937;
-      --muted: #6b7280;
-      --bar-bg: #e5e7eb;
-      --compress-color: #facc15;
-      --upload-color: #4f46e5;
-      --disabled: #a5b4fc;
-    }
-    * { box-sizing: border-box; margin:0; padding:0 }
-    body {
-      font-family:'Segoe UI',sans-serif;
-      background: linear-gradient(to right, var(--bg-start), var(--bg-end));
-      height:100vh; display:flex; align-items:center; justify-content:center;
-      color: var(--text); padding:20px;
-    }
-    .card {
-      background: var(--card-bg); backdrop-filter: blur(8px);
-      border-radius:1rem; box-shadow:0 12px 32px rgba(0,0,0,0.12);
-      width:100%; max-width:480px; padding:2rem; text-align:center;
-    }
-    h1 { font-size:1.5rem; margin-bottom:1.5rem }
-    .file-drop {
-      border:2px dashed #cbd5e1; border-radius:0.75rem;
-      padding:2rem; cursor:pointer; transition: background .3s, border-color .3s;
-      margin-bottom:1rem; display:flex; align-items:center; justify-content:center;
-      flex-direction:column;
-    }
-    .file-drop.dragover {
-      background:#e0e7ff; border-color:var(--accent);
-    }
-    .file-drop .icon { font-size:2rem; color: var(--muted); margin-bottom:0.5rem }
-    .file-drop p { font-size:0.9rem; color: var(--muted) }
-    input[type="file"] { display:none }
-    .file-name {
-      font-size:0.85rem; color: var(--text);
-      margin-bottom:1rem; word-break:break-all;
-    }
-    button {
-      width:100%; padding:0.75rem; font-size:1rem;
-      border:none; border-radius:0.5rem; cursor:pointer;
-      background: var(--accent); color:white; transition: background .2s;
-    }
-    button:hover:not([disabled]) { background: var(--accent-hover) }
-    button[disabled] { background: var(--disabled); cursor:not-allowed }
-    .stage-label {
-      font-size:0.85rem; color: var(--muted);
-      margin-top:0.75rem; min-height:1.2rem;
-    }
-    .progress-bar {
-      width:100%; background:var(--bar-bg);
-      border-radius:0.5rem; overflow:hidden;
-      height:0.75rem; margin-top:0.5rem; display:none;
-    }
-    .progress-fill {
-      height:100%; width:0%; transition:width .1s ease;
-    }
-    #result {
-      margin-top:1.5rem; display:none; position:relative;
-    }
-    #result code {
-      display:block; background:#f3f4f6;
-      padding:0.75rem 2.5rem 0.75rem 0.75rem;
-      font-family:monospace; font-size:0.9rem;
-      border-radius:0.5rem; word-break:break-all;
-    }
-    .copy-icon {
-      position:absolute; top:0.75rem; right:0.75rem;
-      font-size:1rem; color:var(--accent); cursor:pointer;
-    }
-    .copy-icon:hover { color: var(--accent-hover) }
-  </style>
+  <link rel="stylesheet" href="/static/style.css">
+
 </head>
 <body>
-  <div class="card">
+  <div>
     <h1>Image Upload</h1>
-    <div class="file-drop" id="dropArea">
-      <div class="icon">📁</div>
+    <div id="dropArea">
+      <div>📁</div>
       <p>Click or drag & drop an image</p>
     </div>
     <input type="file" id="fileInput" accept="image/*" />
-    <div class="file-name" id="fileName">No file chosen</div>
+    <div id="fileName">No file chosen</div>
     <button type="button" id="startBtn">Compress & Upload</button>
-    <div class="stage-label" id="stageLabel"></div>
-    <div class="progress-bar" id="compressBar"><div class="progress-fill" id="compressFill" style="background: var(--compress-color)"></div></div>
-    <div class="progress-bar" id="clientBar"><div class="progress-fill" id="clientFill" style="background: var(--upload-color)"></div></div>
-    <div class="progress-bar" id="githubBar"><div class="progress-fill" id="githubFill" style="background: var(--upload-color)"></div></div>
-    <div id="result"><code id="resultUrl"></code><div class="copy-icon" id="copyBtn">📋</div></div>
+    <div id="stageLabel"></div>
+    <div id="compressBar"><div id="compressFill"></div></div>
+    <div id="clientBar"><div id="clientFill"></div></div>
+    <div id="githubBar"><div id="githubFill"></div></div>
+    <div id="result"><code id="resultUrl"></code><div id="copyBtn">📋</div></div>
   </div>
 
   <script>
@@ -122,8 +47,12 @@
 
     function resetUI() {
       stageLabel.textContent = '';
-      [compressBar, clientBar, githubBar].forEach(b => b.style.display='none');
-      [compressFill, clientFill, githubFill].forEach(f => f.style.width='0%');
+      compressBar.style.display = 'none';
+      clientBar.style.display = 'none';
+      githubBar.style.display = 'none';
+      compressFill.style.width = '0%';
+      clientFill.style.width = '0%';
+      githubFill.style.width = '0%';
       resultDiv.style.display = 'none';
       startBtn.disabled = false;
     }
@@ -138,8 +67,8 @@
     ['dragover','dragleave','drop'].forEach(evt => {
       dropArea.addEventListener(evt, e => {
         e.preventDefault();
-        dropArea.classList.toggle('dragover', evt==='dragover');
-        if (evt==='drop') {
+        dropArea.classList.toggle('dragover', evt === 'dragover');
+        if (evt === 'drop') {
           currentFile = e.dataTransfer.files[0];
           fileInput.files = e.dataTransfer;
           fileNameEl.textContent = currentFile.name;
@@ -152,7 +81,6 @@
       if (!currentFile) return alert('Please select an image first!');
       startBtn.disabled = true;
 
-      // 1. Compress if needed
       let toUpload = currentFile;
       if (currentFile.size > 1.5 * 1024 * 1024) {
         stageLabel.textContent = 'Compressing… 0%';
@@ -169,14 +97,12 @@
         });
       }
 
-      // 2. Upload to backend (Socket.IO chunking)
       const buffer = await toUpload.arrayBuffer();
       const base64Data = btoa(String.fromCharCode(...new Uint8Array(buffer)));
 
       stageLabel.textContent = 'Uploading to server… 0%';
       clientBar.style.display = 'block';
 
-      // Break into chunks manually
       const total = base64Data.length;
       const chunkSize = 100_000;
       let sent = 0;
@@ -191,13 +117,11 @@
         await new Promise(r => setTimeout(r, 10));
       }
 
-      // Done sending
       socket.emit("upload_done", {
         filename: toUpload.name
       });
     });
 
-    // GitHub upload progress
     socket.on("upload_status", (data) => {
       if (data.stage === "github_started") {
         stageLabel.textContent = "Uploading to GitHub…";
