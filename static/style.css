@@ -11,65 +11,65 @@
       --upload-color: #4f46e5;
       --disabled: #a5b4fc;
     }
-    * { box-sizing: border-box; margin:0; padding:0 }
-    body {
-      font-family:'Segoe UI',sans-serif;
-      background: linear-gradient(to right, var(--bg-start), var(--bg-end));
-      height:100vh; display:flex; align-items:center; justify-content:center;
-      color: var(--text); padding:20px;
-    }
-    .card {
-      background: var(--card-bg); backdrop-filter: blur(8px);
-      border-radius:1rem; box-shadow:0 12px 32px rgba(0,0,0,0.12);
-      width:100%; max-width:480px; padding:2rem; text-align:center;
-    }
-    h1 { font-size:1.5rem; margin-bottom:1.5rem }
-    .file-drop {
-      border:2px dashed #cbd5e1; border-radius:0.75rem;
-      padding:2rem; cursor:pointer; transition: background .3s, border-color .3s;
-      margin-bottom:1rem; display:flex; align-items:center; justify-content:center;
-      flex-direction:column;
-    }
-    .file-drop.dragover {
-      background:#e0e7ff; border-color:var(--accent);
-    }
-    .file-drop .icon { font-size:2rem; color: var(--muted); margin-bottom:0.5rem }
-    .file-drop p { font-size:0.9rem; color: var(--muted) }
-    input[type="file"] { display:none }
-    .file-name {
-      font-size:0.85rem; color: var(--text);
-      margin-bottom:1rem; word-break:break-all;
-    }
-    button {
-      width:100%; padding:0.75rem; font-size:1rem;
-      border:none; border-radius:0.5rem; cursor:pointer;
-      background: var(--accent); color:white; transition: background .2s;
-    }
-    button:hover:not([disabled]) { background: var(--accent-hover) }
-    button[disabled] { background: var(--disabled); cursor:not-allowed }
-    .stage-label {
-      font-size:0.85rem; color: var(--muted);
-      margin-top:0.75rem; min-height:1.2rem;
-    }
-    .progress-bar {
-      width:100%; background:var(--bar-bg);
-      border-radius:0.5rem; overflow:hidden;
-      height:0.75rem; margin-top:0.5rem; display:none;
-    }
-    .progress-fill {
-      height:100%; width:0%; transition:width .1s ease;
-    }
-    #result {
-      margin-top:1.5rem; display:none; position:relative;
-    }
-    #result code {
-      display:block; background:#f3f4f6;
-      padding:0.75rem 2.5rem 0.75rem 0.75rem;
-      font-family:monospace; font-size:0.9rem;
-      border-radius:0.5rem; word-break:break-all;
-    }
-    .copy-icon {
-      position:absolute; top:0.75rem; right:0.75rem;
-      font-size:1rem; color:var(--accent); cursor:pointer;
-    }
-    .copy-icon:hover { color: var(--accent-hover) }
+* { box-sizing: border-box; margin:0; padding:0 }
+body {
+    font-family:'Segoe UI',sans-serif;
+    background: linear-gradient(to right, var(--bg-start), var(--bg-end));
+    height:100vh; display:flex; align-items:center; justify-content:center;
+    color: var(--text); padding:20px;
+}
+.card {
+    background: var(--card-bg); backdrop-filter: blur(8px);
+    border-radius:1rem; box-shadow:0 12px 32px rgba(0,0,0,0.12);
+    width:100%; max-width:480px; padding:2rem; text-align:center;
+}
+h1 { font-size:1.5rem; margin-bottom:1.5rem }
+.file-drop {
+    border:2px dashed #cbd5e1; border-radius:0.75rem;
+    padding:2rem; cursor:pointer; transition: background .3s, border-color .3s;
+    margin-bottom:1rem; display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+}
+.file-drop.dragover {
+    background:#e0e7ff; border-color:var(--accent);
+}
+.file-drop .icon { font-size:2rem; color: var(--muted); margin-bottom:0.5rem }
+.file-drop p { font-size:0.9rem; color: var(--muted) }
+input[type="file"] { display:none }
+.file-name {
+    font-size:0.85rem; color: var(--text);
+    margin-bottom:1rem; word-break:break-all;
+}
+button {
+    width:100%; padding:0.75rem; font-size:1rem;
+    border:none; border-radius:0.5rem; cursor:pointer;
+    background: var(--accent); color:white; transition: background .2s;
+}
+button:hover:not([disabled]) { background: var(--accent-hover) }
+button[disabled] { background: var(--disabled); cursor:not-allowed }
+.stage-label {
+    font-size:0.85rem; color: var(--muted);
+    margin-top:0.75rem; min-height:1.2rem;
+}
+.progress-bar {
+    width:100%; background:var(--bar-bg);
+    border-radius:0.5rem; overflow:hidden;
+    height:0.75rem; margin-top:0.5rem; display:none;
+}
+.progress-fill {
+    height:100%; width:0%; transition:width .1s ease;
+}
+#result {
+    margin-top:1.5rem; display:none; position:relative;
+}
+#result code {
+    display:block; background:#f3f4f6;
+    padding:0.75rem 2.5rem 0.75rem 0.75rem;
+    font-family:monospace; font-size:0.9rem;
+    border-radius:0.5rem; word-break:break-all;
+}
+.copy-icon {
+    position:absolute; top:0.75rem; right:0.75rem;
+    font-size:1rem; color:var(--accent); cursor:pointer;
+}
+.copy-icon:hover { color: var(--accent-hover) }

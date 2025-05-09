@@ -7,23 +7,22 @@
   <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.5.0/dist/socket.io.min.js"></script>
   <link rel="stylesheet" href="/static/style.css">
-
 </head>
 <body>
-  <div>
+  <div class="card">
     <h1>Image Upload</h1>
-    <div id="dropArea">
-      <div>📁</div>
+    <div class="file-drop" id="dropArea">
+      <div class="icon">📁</div>
       <p>Click or drag & drop an image</p>
     </div>
     <input type="file" id="fileInput" accept="image/*" />
-    <div id="fileName">No file chosen</div>
+    <div class="file-name" id="fileName">No file chosen</div>
     <button type="button" id="startBtn">Compress & Upload</button>
-    <div id="stageLabel"></div>
-    <div id="compressBar"><div id="compressFill"></div></div>
-    <div id="clientBar"><div id="clientFill"></div></div>
-    <div id="githubBar"><div id="githubFill"></div></div>
-    <div id="result"><code id="resultUrl"></code><div id="copyBtn">📋</div></div>
+    <div class="stage-label" id="stageLabel"></div>
+    <div class="progress-bar" id="compressBar"><div class="progress-fill" id="compressFill" style="background: var(--compress-color)"></div></div>
+    <div class="progress-bar" id="clientBar"><div class="progress-fill" id="clientFill" style="background: var(--upload-color)"></div></div>
+    <div class="progress-bar" id="githubBar"><div class="progress-fill" id="githubFill" style="background: var(--upload-color)"></div></div>
+    <div id="result"><code id="resultUrl"></code><div class="copy-icon" id="copyBtn">📋</div></div>
   </div>
 
   <script>
@@ -47,12 +46,8 @@
 
     function resetUI() {
       stageLabel.textContent = '';
-      compressBar.style.display = 'none';
-      clientBar.style.display = 'none';
-      githubBar.style.display = 'none';
-      compressFill.style.width = '0%';
-      clientFill.style.width = '0%';
-      githubFill.style.width = '0%';
+      [compressBar, clientBar, githubBar].forEach(b => b.style.display='none');
+      [compressFill, clientFill, githubFill].forEach(f => f.style.width='0%');
       resultDiv.style.display = 'none';
       startBtn.disabled = false;
     }
@@ -67,8 +62,8 @@
     ['dragover','dragleave','drop'].forEach(evt => {
       dropArea.addEventListener(evt, e => {
         e.preventDefault();
-        dropArea.classList.toggle('dragover', evt === 'dragover');
-        if (evt === 'drop') {
+        dropArea.classList.toggle('dragover', evt==='dragover');
+        if (evt==='drop') {
           currentFile = e.dataTransfer.files[0];
           fileInput.files = e.dataTransfer;
           fileNameEl.textContent = currentFile.name;
@@ -78,50 +73,68 @@
     });
 
     startBtn.addEventListener('click', async () => {
-      if (!currentFile) return alert('Please select an image first!');
-      startBtn.disabled = true;
+      if (!currentFile) {
+        alert('Please select an image first!');
+        return;
+      }
+      startBtn.disabled = true; // Disable the button to prevent multiple clicks
 
-      let toUpload = currentFile;
-      if (currentFile.size > 1.5 * 1024 * 1024) {
-        stageLabel.textContent = 'Compressing… 0%';
-        compressBar.style.display = 'block';
-        toUpload = await imageCompression(currentFile, {
-          maxSizeMB: 1,
-          maxWidthOrHeight: 1024,
-          useWebWorker: true,
-          onProgress: pct => {
-            const p = Math.round(pct);
-            compressFill.style.width = p + '%';
-            stageLabel.textContent = `Compressing… ${p}%`;
-          }
+      try {
+        // 1. Compress if needed
+        let toUpload = currentFile;
+        if (currentFile.size > 1.5 * 1024 * 1024) {
+          stageLabel.textContent = 'Compressing… 0%';
+          compressBar.style.display = 'block';
+
+          toUpload = await imageCompression(currentFile, {
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1024,
+            useWebWorker: true,
+            onProgress: pct => {
+              const p = Math.round(pct);
+              compressFill.style.width = p + '%';
+              stageLabel.textContent = `Compressing… ${p}%`;
+            }
+          });
+        }
+
+        // 2. Upload to backend (Socket.IO chunking)
+        const buffer = await toUpload.arrayBuffer();
+        const base64Data = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+
+        stageLabel.textContent = 'Uploading to server… 0%';
+        clientBar.style.display = 'block';
+
+        // Break into chunks manually
+        const total = base64Data.length;
+        const chunkSize = 100_000;
+        let sent = 0;
+
+        for (let i = 0; i < total; i += chunkSize) {
+          const chunk = base64Data.slice(i, i + chunkSize);
+          socket.emit("upload_chunk", { chunk });
+          sent += chunk.length;
+          const pct = Math.round(sent / total * 100);
+          clientFill.style.width = pct + '%';
+          stageLabel.textContent = `Uploading to server… ${pct}%`;
+          await new Promise(r => setTimeout(r, 10));
+        }
+
+        // Done sending
+        socket.emit("upload_done", {
+          filename: toUpload.name
         });
+
+      } catch (error) {
+        console.error("Error during image upload: ", error);
+        alert("An error occurred during the process. Please try again.");
+      } finally {
+        // Enable the button again after the process
+        startBtn.disabled = false;
       }
-
-      const buffer = await toUpload.arrayBuffer();
-      const base64Data = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-
-      stageLabel.textContent = 'Uploading to server… 0%';
-      clientBar.style.display = 'block';
-
-      const total = base64Data.length;
-      const chunkSize = 100_000;
-      let sent = 0;
-
-      for (let i = 0; i < total; i += chunkSize) {
-        const chunk = base64Data.slice(i, i + chunkSize);
-        socket.emit("upload_chunk", { chunk });
-        sent += chunk.length;
-        const pct = Math.round(sent / total * 100);
-        clientFill.style.width = pct + '%';
-        stageLabel.textContent = `Uploading to server… ${pct}%`;
-        await new Promise(r => setTimeout(r, 10));
-      }
-
-      socket.emit("upload_done", {
-        filename: toUpload.name
-      });
     });
 
+    // GitHub upload progress
     socket.on("upload_status", (data) => {
       if (data.stage === "github_started") {
         stageLabel.textContent = "Uploading to GitHub…";
