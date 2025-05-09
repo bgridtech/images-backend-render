@@ -64,8 +64,8 @@
     ['dragover','dragleave','drop'].forEach(evt => {
       dropArea.addEventListener(evt, e => {
         e.preventDefault();
-        dropArea.classList.toggle('dragover', evt==='dragover');
-        if (evt==='drop') {
+        dropArea.classList.toggle('dragover', evt === 'dragover');
+        if (evt === 'drop') {
           currentFile = e.dataTransfer.files[0];
           fileInput.files = e.dataTransfer;
           fileNameEl.textContent = currentFile.name;
@@ -74,6 +74,18 @@
       });
     });
 
+    async function toBase64(file) {
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("FileReader failed."));
+        reader.onload = () => {
+          const result = reader.result;
+          resolve(result.split(",", 2)[1]); // Extract base64 payload
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
     async function uploadHandler() {
       if (isUploading) return;
       if (!currentFile) return alert('Please select an image first!');
@@ -81,7 +93,6 @@
       startBtn.disabled = true;
 
       try {
-        // 1. Compress if needed
         let toUpload = currentFile;
         if (currentFile.size > 1.5 * 1024 * 1024) {
           stageLabel.textContent = 'Compressing… 0%';
@@ -98,9 +109,7 @@
           });
         }
 
-        // 2. Upload to backend
-        const buffer = await toUpload.arrayBuffer();
-        const base64Data = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        const base64Data = await toBase64(toUpload);
 
         stageLabel.textContent = 'Uploading to server… 0%';
         clientBar.style.display = 'block';
@@ -129,7 +138,6 @@
 
     startBtn.addEventListener('click', uploadHandler);
 
-    // GitHub progress
     socket.on("upload_status", (data) => {
       if (data.stage === "github_started") {
         stageLabel.textContent = "Uploading to GitHub…";
