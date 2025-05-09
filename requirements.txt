@@ -5,3 +5,4 @@ eventlet>=0.33
 requests>=2.25
 psycopg2-binary>=2.9
 gunicorn
+eventlet
