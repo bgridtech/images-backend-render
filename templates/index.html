@@ -43,6 +43,7 @@
     const copyBtn = document.getElementById('copyBtn');
 
     let currentFile = null;
+    let isUploading = false;  // Prevent duplicate uploads
 
     function resetUI() {
       stageLabel.textContent = '';
@@ -74,6 +75,8 @@
 
     startBtn.addEventListener('click', async () => {
       if (!currentFile) return alert('Please select an image first!');
+      if (isUploading) return; // Prevent duplicate uploads
+      isUploading = true;
       startBtn.disabled = true;
 
       try {
@@ -123,6 +126,8 @@
       } catch (error) {
         console.error('Error during image upload:', error);
         alert('An error occurred during the upload. Please try again.');
+      } finally {
+        isUploading = false; // Reset the flag to allow future uploads
       }
     });
 
