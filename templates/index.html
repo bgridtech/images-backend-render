@@ -108,7 +108,7 @@
       try {
         let toUpload = currentFile;
 
-        if (currentFile.size > 1.5 * 1024 * 1024) {
+        if (currentFile.size > 0.7 * 1024 * 1024) {
           stageLabel.textContent = 'Compressing… 0%';
           compressBar.style.display = 'block';
 
