@@ -38,154 +38,154 @@
     </div>
   </div>
 
-  <script>
-    const socket       = io();
-    const dropArea     = document.getElementById('dropArea');
-    const fileInput    = document.getElementById('fileInput');
-    const fileNameEl   = document.getElementById('fileName');
-    const startBtn     = document.getElementById('startBtn');
-    const stageLabel   = document.getElementById('stageLabel');
-    const compressBar  = document.getElementById('compressBar');
-    const compressFill = document.getElementById('compressFill');
-    const clientBar    = document.getElementById('clientBar');
-    const clientFill   = document.getElementById('clientFill');
-    const githubBar    = document.getElementById('githubBar');
-    const githubFill   = document.getElementById('githubFill');
-    const resultDiv    = document.getElementById('result');
-    const resultUrl    = document.getElementById('resultUrl');
-    const copyBtn      = document.getElementById('copyBtn');
+<script>
+  const socket       = io();
+  const dropArea     = document.getElementById('dropArea');
+  const fileInput    = document.getElementById('fileInput');
+  const fileNameEl   = document.getElementById('fileName');
+  const startBtn     = document.getElementById('startBtn');
+  const stageLabel   = document.getElementById('stageLabel');
+  const compressBar  = document.getElementById('compressBar');
+  const compressFill = document.getElementById('compressFill');
+  const clientBar    = document.getElementById('clientBar');
+  const clientFill   = document.getElementById('clientFill');
+  const githubBar    = document.getElementById('githubBar');
+  const githubFill   = document.getElementById('githubFill');
+  const resultDiv    = document.getElementById('result');
+  const resultUrl    = document.getElementById('resultUrl');
+  const copyBtn      = document.getElementById('copyBtn');
 
-    let currentFile = null;
-    let isUploading = false;
+  let currentFile = null;
+  let isUploading = false;
 
-    function resetUI() {
-      stageLabel.textContent = '';
-      [compressBar, clientBar, githubBar].forEach(b => b.style.display='none');
-      [compressFill, clientFill, githubFill].forEach(f => f.style.width='0%');
-      resultDiv.style.display = 'none';
-      startBtn.disabled = false;
-    }
+  function resetUI() {
+    stageLabel.textContent = '';
+    [compressBar, clientBar, githubBar].forEach(b => b.style.display = 'none');
+    [compressFill, clientFill, githubFill].forEach(f => f.style.width = '0%');
+    resultDiv.style.display = 'none';
+    startBtn.disabled = false;
+  }
 
-    dropArea.addEventListener('click', () => fileInput.click());
+  dropArea.addEventListener('click', () => fileInput.click());
 
-    fileInput.addEventListener('change', () => {
-      currentFile = fileInput.files[0];
-      fileNameEl.textContent = currentFile?.name || 'No file chosen';
-      resetUI();
-    });
+  fileInput.addEventListener('change', () => {
+    currentFile = fileInput.files[0];
+    fileNameEl.textContent = currentFile?.name || 'No file chosen';
+    resetUI();
+  });
 
-    ['dragover', 'dragleave', 'drop'].forEach(evt => {
-      dropArea.addEventListener(evt, e => {
-        e.preventDefault();
-        dropArea.classList.toggle('dragover', evt === 'dragover');
-        if (evt === 'drop') {
-          currentFile = e.dataTransfer.files[0];
-          fileInput.files = e.dataTransfer;
-          fileNameEl.textContent = currentFile.name;
-          resetUI();
-        }
-      });
-    });
-
-    async function toBase64(file) {
-      return await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = () => reject(new Error("FileReader failed."));
-        reader.onload = () => {
-          const result = reader.result;
-          resolve(result.split(",", 2)[1]);
-        };
-        reader.readAsDataURL(file);
-      });
-    }
-
-    async function uploadHandler() {
-      if (isUploading) return;
-      if (!currentFile) return alert('Please select an image first!');
-      isUploading = true;
-      startBtn.disabled = true;
-
-      try {
-        let toUpload = currentFile;
-
-        if (currentFile.size > 0.7 * 1024 * 1024) {
-          stageLabel.textContent = 'Compressing… 0%';
-          compressBar.style.display = 'block';
-
-          toUpload = await imageCompression(currentFile, {
-            maxSizeMB: 1,
-            maxWidthOrHeight: 1024,
-            useWebWorker: true,
-            onProgress: pct => {
-              const p = Math.round(pct);
-              compressFill.style.width = p + '%';
-              stageLabel.textContent = `Compressing… ${p}%`;
-            }
-          });
-        }
-
-        const base64Data = await toBase64(toUpload);
-
-        stageLabel.textContent = 'Uploading to server… 0%';
-        clientBar.style.display = 'block';
-
-        const total = base64Data.length;
-        const chunkSize = 100_000;
-        let sent = 0;
-
-        for (let i = 0; i < total; i += chunkSize) {
-          const chunk = base64Data.slice(i, i + chunkSize);
-          socket.emit("upload_chunk", { chunk });
-          sent += chunk.length;
-          const pct = Math.round(sent / total * 100);
-          clientFill.style.width = pct + '%';
-          stageLabel.textContent = `Uploading to server… ${pct}%`;
-          await new Promise(r => setTimeout(r, 10));
-        }
-
-        socket.emit("upload_done", { filename: toUpload.name });
-
-      } catch (err) {
-        console.error("Error during image upload:", err);
-        alert("Upload failed: " + err.message);
-        isUploading = false;
-        startBtn.disabled = false;
+  ['dragover', 'dragleave', 'drop'].forEach(evt => {
+    dropArea.addEventListener(evt, e => {
+      e.preventDefault();
+      dropArea.classList.toggle('dragover', evt === 'dragover');
+      if (evt === 'drop') {
+        currentFile = e.dataTransfer.files[0];
+        fileInput.files = e.dataTransfer;
+        fileNameEl.textContent = currentFile.name;
+        resetUI();
       }
-    }
+    });
+  });
 
-    startBtn.addEventListener('click', uploadHandler);
+  async function toBase64(file) {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("FileReader failed."));
+      reader.onload = () => {
+        const result = reader.result;
+        resolve(result.split(",", 2)[1]);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
 
-    socket.on("upload_status", (data) => {
-      if (data.stage === "github_started") {
-        stageLabel.textContent = "Uploading to GitHub… please wait";
-        githubBar.style.display = 'block';
-        githubFill.style.width = '0%';
-        let w = 0;
-        const anim = setInterval(() => {
-          githubFill.style.width = (w = (w + 10) % 100) + '%';
-        }, 200);
+  async function uploadHandler() {
+    if (isUploading) return;
+    if (!currentFile) return alert('Please select an image first!');
+    isUploading = true;
+    startBtn.disabled = true;
 
-        socket.once("upload_status", (final) => {
-          clearInterval(anim);
-          if (final.stage === "done") {
-            githubFill.style.width = '100%';
-            resultUrl.textContent = final.url;
-            resultDiv.style.display = 'block';
-            stageLabel.textContent = 'Upload complete!';
-          } else if (final.stage === "error") {
-            stageLabel.textContent = "Error: " + final.message;
+    try {
+      let toUpload = currentFile;
+
+      if (currentFile.size > 0.7 * 1024 * 1024) {
+        stageLabel.textContent = 'Compressing… 0%';
+        compressBar.style.display = 'block';
+
+        toUpload = await imageCompression(currentFile, {
+          maxSizeMB: 0.6, // Target around 600 KB
+          maxWidthOrHeight: 1024,
+          useWebWorker: true,
+          onProgress: pct => {
+            const p = Math.round(pct);
+            compressFill.style.width = p + '%';
+            stageLabel.textContent = `Compressing… ${p}%`;
           }
-          isUploading = false;
         });
       }
-    });
 
-    copyBtn.addEventListener('click', () => {
-      navigator.clipboard.writeText(resultUrl.textContent).then(() => {
-        copyBtn.textContent = '✅';
-        setTimeout(() => copyBtn.textContent = '📋', 1500);
+      const base64Data = await toBase64(toUpload);
+
+      stageLabel.textContent = 'Uploading to server… 0%';
+      clientBar.style.display = 'block';
+
+      const total = base64Data.length;
+      const chunkSize = 100_000;
+      let sent = 0;
+
+      for (let i = 0; i < total; i += chunkSize) {
+        const chunk = base64Data.slice(i, i + chunkSize);
+        socket.emit("upload_chunk", { chunk });
+        sent += chunk.length;
+        const pct = Math.round(sent / total * 100);
+        clientFill.style.width = pct + '%';
+        stageLabel.textContent = `Uploading to server… ${pct}%`;
+        await new Promise(r => setTimeout(r, 10));
+      }
+
+      socket.emit("upload_done", { filename: toUpload.name });
+
+    } catch (err) {
+      console.error("Error during image upload:", err);
+      alert("Upload failed: " + err.message);
+      isUploading = false;
+      startBtn.disabled = false;
+    }
+  }
+
+  startBtn.addEventListener('click', uploadHandler);
+
+  socket.on("upload_status", (data) => {
+    if (data.stage === "github_started") {
+      stageLabel.textContent = "Uploading to GitHub… please wait";
+      githubBar.style.display = 'block';
+      githubFill.style.width = '0%';
+      let w = 0;
+      const anim = setInterval(() => {
+        githubFill.style.width = (w = (w + 10) % 100) + '%';
+      }, 200);
+
+      socket.once("upload_status", (final) => {
+        clearInterval(anim);
+        if (final.stage === "done") {
+          githubFill.style.width = '100%';
+          resultUrl.textContent = final.url;
+          resultDiv.style.display = 'block';
+          stageLabel.textContent = 'Upload complete!';
+        } else if (final.stage === "error") {
+          stageLabel.textContent = "Error: " + final.message;
+        }
+        isUploading = false;
       });
+    }
+  });
+
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(resultUrl.textContent).then(() => {
+      copyBtn.textContent = '✅';
+      setTimeout(() => copyBtn.textContent = '📋', 1500);
     });
-  </script>
+  });
+</script>
 </body>
 </html>
