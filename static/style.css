@@ -170,3 +170,36 @@ button[disabled] {
 .copy-icon:hover {
   color: var(--accent-hover);
 }
+
+  #compressionControls label,
+    #compressionSlider {
+      color: gray;
+      cursor: not-allowed;
+    }
+
+    #compressionControls.active label,
+    #compressionControls.active #compressionSlider {
+      color: #000;
+      cursor: pointer;
+    }
+
+    #compressionSlider {
+      width: 100%;
+      margin-bottom: 5px;
+    }
+
+    .compression-settings {
+      margin-bottom: 10px;
+    }
+
+    .compression-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      color: gray;
+    }
+
+    .compression-toggle input:checked + span {
+      color: #000;
+    }
