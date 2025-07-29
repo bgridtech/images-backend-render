@@ -19,6 +19,17 @@
     <input type="file" id="fileInput" accept="image/*" />
     <div class="file-name" id="fileName">No file chosen</div>
 
+    <div class="compression-settings">
+      <label>
+        <input type="checkbox" id="enableCompression" checked />
+        Enable Compression
+      </label>
+      <div id="compressionControls">
+        <label for="compressionSlider">Target Size: <span id="targetSizeLabel">600</span> KB</label>
+        <input type="range" id="compressionSlider" min="100" max="1000" value="600" step="50" />
+      </div>
+    </div>
+
     <button type="button" id="startBtn">Compress & Upload</button>
 
     <div class="stage-label" id="stageLabel"></div>
@@ -55,6 +66,10 @@
   const resultUrl    = document.getElementById('resultUrl');
   const copyBtn      = document.getElementById('copyBtn');
 
+  const enableCompression   = document.getElementById('enableCompression');
+  const compressionSlider   = document.getElementById('compressionSlider');
+  const targetSizeLabel     = document.getElementById('targetSizeLabel');
+
   let currentFile = null;
   let isUploading = false;
 
@@ -65,6 +80,10 @@
     resultDiv.style.display = 'none';
     startBtn.disabled = false;
   }
+
+  compressionSlider.addEventListener('input', () => {
+    targetSizeLabel.textContent = compressionSlider.value;
+  });
 
   dropArea.addEventListener('click', () => fileInput.click());
 
@@ -108,12 +127,13 @@
     try {
       let toUpload = currentFile;
 
-      if (currentFile.size > 0.7 * 1024 * 1024) {
+      if (enableCompression.checked) {
+        const targetSizeMB = parseInt(compressionSlider.value) / 1024;
         stageLabel.textContent = 'Compressing… 0%';
         compressBar.style.display = 'block';
 
         toUpload = await imageCompression(currentFile, {
-          maxSizeMB: 0.6, // Target around 600 KB
+          maxSizeMB: targetSizeMB,
           maxWidthOrHeight: 1024,
           useWebWorker: true,
           onProgress: pct => {
